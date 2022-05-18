@@ -11,81 +11,57 @@ provider "azurerm" {
   features {}
 }
 
-resource "azurerm_resource_group" "instance" {
-  name     = "sdd-demo"
+resource "azurerm_resource_group" "example" {
+  name     = "example-resources"
   location = "West Europe"
 }
 
-data "azurerm_service_plan" "shared" {
-  name                = "plan-demo"
-  resource_group_name = "rg-shared-demo"
+resource "azurerm_service_plan" "example" {
+  name                = "example-plan"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_resource_group.example.location
+  os_type             = "Linux"
+  sku_name            = "P1v2"
 }
 
-data "azurerm_key_vault" "shared" {
-  name                = "kv-demo-1421"
-  resource_group_name = "rg-shared-demo"
-}
-
-locals {
-  suffix = "demo"
-  prefix = "sdd"
-}
-
-locals {
-  suffix2 = "demo2"
-}
-
-resource "azurerm_linux_web_app" "demo_web" {
-  name                = "app-sdd-${local.suffix}"
-  resource_group_name = azurerm_resource_group.instance.name
-  location            = azurerm_resource_group.instance.location
-  service_plan_id     = data.azurerm_service_plan.shared.id
-
-  identity {
-    type = "SystemAssigned"
-  }
+resource "azurerm_linux_web_app" "example" {
+  name                = "example-linux-web-app"
+  resource_group_name = azurerm_resource_group.example.name
+  location            = azurerm_service_plan.example.location
+  service_plan_id     = azurerm_service_plan.example.id
 
   site_config {}
 }
 
-resource "azurerm_key_vault_access_policy" "demo_web_access" {
-  key_vault_id = data.azurerm_key_vault.shared.id
-  object_id    = azurerm_linux_web_app.demo_web.identity.0.principal_id
-  tenant_id    = azurerm_linux_web_app.demo_web.identity.0.tenant_id
-
-  secret_permissions = [
-    "Get",
-    "List"
-  ]
-}
-
-resource "azurerm_linux_web_app_slot" "demo_web_slot" {
-  count = var.slot_count
-  name           = "slot-sdd-demo-${count.index}"
-  app_service_id = azurerm_linux_web_app.demo_web.id
-
-  identity {
-    type = "SystemAssigned"
-  }
+resource "azurerm_linux_web_app_slot" "example" {
+  name           = "example-slot"
+  app_service_id = azurerm_linux_web_app.example.id
 
   site_config {}
 }
 
-resource "azurerm_key_vault_access_policy" "demo_web_slot_access" {
-  count = var.slot_count
-  key_vault_id = data.azurerm_key_vault.shared.id
-  object_id    = azurerm_linux_web_app_slot.demo_web_slot[count.index].identity.0.principal_id
-  tenant_id    = azurerm_linux_web_app_slot.demo_web_slot[count.index].identity.0.tenant_id
+resource "azurerm_key_vault" "example" {
+  name                        = "examplekeyvault"
+  location                    = azurerm_resource_group.example.location
+  resource_group_name         = azurerm_resource_group.example.name
+  enabled_for_disk_encryption = true
+  tenant_id                   = "00000000-0000-0000-0000-000000000000"
+  soft_delete_retention_days  = 7
+  purge_protection_enabled    = false
 
-  secret_permissions = [
-    "Get",
-    "List"
-  ]
+  sku_name = "standard"
 }
 
-resource "random_integer" "suffix" {
-  min = 1
-  max = 99
+resource "azurerm_storage_account" "example" {
+  name                     = "examplestoracc"
+  resource_group_name      = azurerm_resource_group.example.name
+  location                 = azurerm_resource_group.example.location
+  account_tier             = "Standard"
+  account_replication_type = "LRS"
 }
 
-
+resource "azurerm_storage_container" "example" {
+  name                  = "content"
+  storage_account_name  = azurerm_storage_account.example.name
+  container_access_type = "private"
+}
